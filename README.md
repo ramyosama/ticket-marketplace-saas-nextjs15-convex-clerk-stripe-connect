@@ -12,6 +12,7 @@ A modern, real-time event ticketing platform built with Next.js 14, Convex, Cler
 - 📱 Mobile-friendly ticket management
 - 🔒 Secure payment processing with Stripe
 - 📲 Digital tickets with QR codes
+- 💸 Automatic refunds for cancelled events
 
 ### For Event Organizers
 
@@ -21,6 +22,8 @@ A modern, real-time event ticketing platform built with Next.js 14, Convex, Cler
 - 📈 Event analytics and tracking
 - 🔄 Automatic ticket recycling
 - 🎟️ Customizable ticket limits
+- ❌ Event cancellation with automatic refunds
+- 🔄 Bulk refund processing
 
 ### Technical Features
 
@@ -28,8 +31,22 @@ A modern, real-time event ticketing platform built with Next.js 14, Convex, Cler
 - 👤 Authentication with Clerk
 - 💳 Payment processing with Stripe Connect
 - 🌐 Server-side and client-side rendering
-- 🎨 Modern UI with Tailwind CSS
+- 🎨 Modern UI with Tailwind CSS and shadcn/ui
 - 📱 Responsive design
+- 🛡️ Rate limiting for queue joins and purchases
+- 🔒 Automated fraud prevention
+- 🔔 Toast notifications for real-time feedback
+- ✨ Beautiful, accessible components with shadcn/ui
+
+### UI/UX Features
+
+- 🎯 Instant feedback with toast notifications
+- 🎨 Consistent design system using shadcn/ui
+- ♿ Fully accessible components
+- 🎭 Animated transitions and feedback
+- 📱 Responsive design across all devices
+- 🔄 Loading states and animations
+- 💫 Micro-interactions for better engagement
 
 ## Getting Started
 
@@ -147,6 +164,28 @@ Note: Keep the Convex development server running while working on your project. 
 
 Note: Make sure your webhook endpoint (`/api/webhooks/stripe`) is properly configured to handle incoming webhook events.
 
+### Setting up UI Components
+
+1. Install shadcn/ui CLI:
+
+   ```bash
+   npx shadcn-ui@latest init
+   ```
+
+2. Install required components:
+
+   ```bash
+   npx shadcn-ui@latest add toast
+   npx shadcn-ui@latest add button
+   npx shadcn-ui@latest add card
+   npx shadcn-ui@latest add dialog
+   ```
+
+3. Configure toast notifications in your layout:
+   ```bash
+   npx shadcn-ui@latest add toaster
+   ```
+
 ## Architecture
 
 ### Database Schema
@@ -214,3 +253,26 @@ For support, email team@papareact.com
 ---
 
 Built with ❤️ for the PAPAFAM
+
+### Handling Refunds and Cancellations
+
+1. Event organizers can cancel events from their dashboard
+2. System automatically processes refunds for all ticket holders
+3. Refund status can be tracked in user dashboard
+
+### User Experience
+
+1. Real-time Feedback
+
+   - Instant purchase confirmations
+   - Queue position updates
+   - Error notifications
+   - Success page
+   - Ticket status
+
+2. Interactive Elements
+   - Animated buttons and cards
+   - Loading states
+   - Progress indicators
+   - Skeleton loaders
+   - Smooth transitions

@@ -1,81 +1,49 @@
-import { headers } from "next/headers";
-import { stripe } from "@/lib/stripe";
-import { getConvexClient } from "@/lib/convex";
-import { api } from "@/convex/_generated/api";
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { StripeCheckoutMetaData } from "@/app/actions/createStripeCheckoutSession";
-import { sendTicketConfirmationEmail } from "@/app/actions/sendEmail";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
 
-export async function POST(req: Request) {
-  console.log("Webhook received");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
+export async function POST(req: NextRequest) {
   const body = await req.text();
-  const headersList = await headers();
-  const signature = headersList.get("stripe-signature") as string;
-
-  console.log("Webhook signature:", signature ? "Present" : "Missing");
+  const signature = req.headers.get("stripe-signature") as string;
 
   let event: Stripe.Event;
 
   try {
-    console.log("Attempting to construct webhook event");
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-    console.log("Webhook event constructed successfully:", event.type);
-  } catch (err) {
-    console.error("Webhook construction failed:", err);
-    return new Response(`Webhook Error: ${(err as Error).message}`, {
-      status: 400,
-    });
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+  } catch (error) {
+    console.error("Webhook signature verification failed:", error);
+    return new NextResponse("Webhook signature verification failed", { status: 400 });
   }
 
-  const convex = getConvexClient();
-
   if (event.type === "checkout.session.completed") {
-    console.log("Processing checkout.session.completed");
     const session = event.data.object as Stripe.Checkout.Session;
-    const metadata = session.metadata as StripeCheckoutMetaData;
-    console.log("Session metadata:", metadata);
-    console.log("Convex client:", convex);
+    const metadata = session.metadata as {
+      eventId: string;
+      userId: string;
+      waitingListId: string;
+      tierId?: string;
+    };
 
     try {
-      const result = await convex.mutation(api.events.purchaseTicket, {
+      await convex.mutation(api.events.purchaseTicket, {
         eventId: metadata.eventId,
         userId: metadata.userId,
         waitingListId: metadata.waitingListId,
         paymentInfo: {
           paymentIntentId: session.payment_intent as string,
-          amount: session.amount_total ?? 0,
+          amount: session.amount_total! / 100, // Convert from cents
         },
       });
-      console.log("Purchase ticket mutation completed:", result);
-
-      // Get user email and event details
-      const user = await convex.query(api.users.getUserById, {
-        userId: metadata.userId,
-      });
-
-      const eventDetails = await convex.query(api.events.getById, {
-        eventId: metadata.eventId,
-      });
-
-      // Send confirmation email
-      if (user && user.email && eventDetails && result && typeof result === 'object' && result !== null && 'ticketId' in result) {
-        await sendTicketConfirmationEmail({
-          email: user.email,
-          eventName: eventDetails.name,
-          eventDate: new Date(eventDetails.eventDate),
-          ticketId: (result as { ticketId: string }).ticketId,
-        });
-      }
     } catch (error) {
       console.error("Error processing webhook:", error);
-      return new Response("Error processing webhook", { status: 500 });
+      return new NextResponse("Error processing webhook", { status: 500 });
     }
   }
 
-  return new Response(null, { status: 200 });
+  return new NextResponse(null, { status: 200 });
 }

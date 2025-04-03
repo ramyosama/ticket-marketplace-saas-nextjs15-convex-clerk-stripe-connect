@@ -1,94 +1,88 @@
 "use server";
 
-import { stripe } from "@/lib/stripe";
-import { getConvexClient } from "@/lib/convex";
-import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import baseUrl from "@/lib/baseUrl";
-import { auth } from "@clerk/nextjs/server";
-import { DURATIONS } from "@/convex/constants";
+import { api } from "@/convex/_generated/api";
+import { ConvexHttpClient } from "convex/browser";
+import Stripe from "stripe";
+import { auth } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 
-export type StripeCheckoutMetaData = {
-  eventId: Id<"events">;
-  userId: string;
-  waitingListId: Id<"waitingList">;
-};
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function createStripeCheckoutSession({
   eventId,
+  tierId,
 }: {
   eventId: Id<"events">;
+  tierId?: Id<"ticketTiers">;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Not authenticated");
-
-  const convex = getConvexClient();
+  // Get authenticated user
+  const { userId } = auth();
+  if (!userId) {
+    throw new Error("You must be signed in to purchase tickets");
+  }
 
   // Get event details
-  const event = await convex.query(api.events.getById, { eventId });
-  if (!event) throw new Error("Event not found");
+  const event = await convex.query(api.events.getById, { id: eventId });
+  if (!event) {
+    throw new Error("Event not found");
+  }
 
-  // Get waiting list entry
-  const queuePosition = await convex.query(api.waitingList.getQueuePosition, {
+  // Get pricing info
+  let price = event.price;
+  let name = `Ticket for ${event.name}`;
+  
+  if (tierId) {
+    const tier = await convex.query(api.ticketTiers.getById, { id: tierId });
+    if (tier) {
+      price = tier.price;
+      name = `${tier.name} - ${event.name}`;
+    }
+  }
+
+  // Add to waiting list and get position
+  const queueResult = await convex.mutation(api.events.joinWaitingList, {
     eventId,
     userId,
   });
 
-  if (!queuePosition || queuePosition.status !== "offered") {
-    throw new Error("No valid ticket offer found");
+  if (queueResult.status !== "offered") {
+    // User was added to waiting list but no tickets available yet
+    return { success: false, message: queueResult.message };
   }
 
-  const stripeConnectId = await convex.query(
-    api.users.getUsersStripeConnectId,
-    {
-      userId: event.userId,
-    }
-  );
-
-  if (!stripeConnectId) {
-    throw new Error("Stripe Connect ID not found for owner of the event!");
-  }
-
-  if (!queuePosition.offerExpiresAt) {
-    throw new Error("Ticket offer has no expiration date");
-  }
-
-  const metadata: StripeCheckoutMetaData = {
-    eventId,
-    userId,
-    waitingListId: queuePosition._id,
-  };
-
-  // Create Stripe Checkout Session
-  const session = await stripe.checkout.sessions.create(
-    {
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "gbp",
-            product_data: {
-              name: event.name,
-              description: event.description,
-            },
-            unit_amount: Math.round(event.price * 100),
+  // Create checkout session
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ["card"],
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name,
+            description: event.description,
           },
-          quantity: 1,
+          unit_amount: Math.round(price * 100), // Stripe uses cents
         },
-      ],
-      payment_intent_data: {
-        application_fee_amount: Math.round(event.price * 100 * 0.01),
+        quantity: 1,
       },
-      expires_at: Math.floor(Date.now() / 1000) + DURATIONS.TICKET_OFFER / 1000, // 30 minutes (stripe checkout minimum expiration time)
-      mode: "payment",
-      success_url: `${baseUrl}/tickets/purchase-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/event/${eventId}`,
-      metadata,
+    ],
+    mode: "payment",
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/tickets?success=true`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/event/${eventId}?cancelled=true`,
+    metadata: {
+      eventId,
+      userId,
+      waitingListId: queueResult.waitingListId,
+      tierId: tierId || "",
     },
-    {
-      stripeAccount: stripeConnectId,
-    }
-  );
+    expires_at: Math.floor(Date.now() / 1000) + 1800, // 30 minutes (Stripe minimum)
+  });
 
-  return { sessionId: session.id, sessionUrl: session.url };
+  return {
+    success: true,
+    url: session.url,
+  };
 }

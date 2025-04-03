@@ -88,6 +88,29 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
     },
   });
 
+  const [ticketTiers, setTicketTiers] = useState([
+    {
+      name: "General Admission",
+      description: "Standard entry to the event",
+      price: initialData?.price || 0,
+      quantity: initialData?.totalTickets || 0,
+      benefits: ["Event entry"],
+    },
+  ]);
+
+  const addTicketTier = () => {
+    setTicketTiers([
+      ...ticketTiers,
+      {
+        name: "",
+        description: "",
+        price: 0,
+        quantity: 0,
+        benefits: [""],
+      },
+    ]);
+  };
+
   async function onSubmit(values: FormData) {
     if (!user?.id) return;
 
@@ -357,6 +380,62 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Ticket Tiers */}
+        <div className="space-y-6 mt-8">
+          <h3 className="text-lg font-medium">Ticket Tiers</h3>
+
+          {ticketTiers.map((tier, index) => (
+            <div key={index} className="border p-4 rounded-lg">
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={tier.name}
+                    onChange={(e) => {
+                      const updated = [...ticketTiers];
+                      updated[index].name = e.target.value;
+                      setTicketTiers(updated);
+                    }}
+                    className="w-full px-3 py-2 border rounded-md"
+                    placeholder="VIP, General Admission, etc."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Price (£)
+                  </label>
+                  <input
+                    type="number"
+                    value={tier.price}
+                    onChange={(e) => {
+                      const updated = [...ticketTiers];
+                      updated[index].price = parseFloat(e.target.value);
+                      setTicketTiers(updated);
+                    }}
+                    className="w-full px-3 py-2 border rounded-md"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Add the rest of the fields */}
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={addTicketTier}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            + Add Another Ticket Tier
+          </button>
         </div>
 
         <Button

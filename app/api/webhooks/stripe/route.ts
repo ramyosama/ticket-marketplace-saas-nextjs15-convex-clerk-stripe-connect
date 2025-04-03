@@ -4,6 +4,7 @@ import { getConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
 import Stripe from "stripe";
 import { StripeCheckoutMetaData } from "@/app/actions/createStripeCheckoutSession";
+import { sendTicketConfirmationEmail } from "@/app/actions/sendEmail";
 
 export async function POST(req: Request) {
   console.log("Webhook received");
@@ -51,6 +52,25 @@ export async function POST(req: Request) {
         },
       });
       console.log("Purchase ticket mutation completed:", result);
+
+      // Get user email and event details
+      const user = await convex.query(api.users.getUserById, {
+        userId: metadata.userId,
+      });
+
+      const eventDetails = await convex.query(api.events.getById, {
+        eventId: metadata.eventId,
+      });
+
+      // Send confirmation email
+      if (user && user.email && eventDetails && result && typeof result === 'object' && result !== null && 'ticketId' in result) {
+        await sendTicketConfirmationEmail({
+          email: user.email,
+          eventName: eventDetails.name,
+          eventDate: new Date(eventDetails.eventDate),
+          ticketId: (result as { ticketId: string }).ticketId,
+        });
+      }
     } catch (error) {
       console.error("Error processing webhook:", error);
       return new Response("Error processing webhook", { status: 500 });

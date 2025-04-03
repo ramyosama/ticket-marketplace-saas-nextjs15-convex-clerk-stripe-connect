@@ -25,6 +25,7 @@ export default defineSchema({
     ),
     paymentIntentId: v.optional(v.string()),
     amount: v.optional(v.number()),
+    tierId: v.optional(v.id("ticketTiers")),
   })
     .index("by_event", ["eventId"])
     .index("by_user", ["userId"])
@@ -54,4 +55,25 @@ export default defineSchema({
   })
     .index("by_user_id", ["userId"])
     .index("by_email", ["email"]),
+
+  ticketTiers: defineTable({
+    eventId: v.id("events"),
+    name: v.string(), // e.g., "VIP", "General Admission"
+    description: v.string(),
+    price: v.number(),
+    quantity: v.number(),
+    benefits: v.array(v.string()), // e.g., ["Early entry", "Meet & greet"]
+    stripePriceId: v.optional(v.string()), // Store Stripe Price ID
+  }).index("by_event", ["eventId"]),
+
+  reviews: defineTable({
+    eventId: v.id("events"),
+    userId: v.string(),
+    rating: v.number(),
+    comment: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_event", ["eventId"])
+    .index("by_user", ["userId"])
+    .index("by_event_user", ["eventId", "userId"]),
 });

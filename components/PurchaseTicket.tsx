@@ -1,6 +1,5 @@
 "use client";
 
-import { createStripeCheckoutSession } from "@/app/actions/createStripeCheckoutSession";
 import { Id } from "@/convex/_generated/dataModel";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,6 +8,14 @@ import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import ReleaseTicket from "./ReleaseTicket";
 import { Ticket } from "lucide-react";
+
+declare function createStripeCheckoutSession({
+  eventId,
+  tierId,
+}: {
+  eventId: Id<"events">;
+  tierId?: string | null;
+}): Promise<{ sessionUrl: string }>;
 
 export default function PurchaseTicket({ eventId }: { eventId: Id<"events"> }) {
   const router = useRouter();
@@ -20,6 +27,9 @@ export default function PurchaseTicket({ eventId }: { eventId: Id<"events"> }) {
 
   const [timeRemaining, setTimeRemaining] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
+  const ticketTiers = useQuery(api.ticketTiers.getByEventId, { eventId });
+  const event = useQuery(api.events.getById, { eventId });
 
   const offerExpiresAt = queuePosition?.offerExpiresAt ?? 0;
   const isExpired = Date.now() > offerExpiresAt;
@@ -51,13 +61,14 @@ export default function PurchaseTicket({ eventId }: { eventId: Id<"events"> }) {
     return () => clearInterval(interval);
   }, [offerExpiresAt, isExpired]);
 
-  const handlePurchase = async () => {
+  const handlePurchase = async (tierId?: string | null) => {
     if (!user) return;
 
     try {
       setIsLoading(true);
       const { sessionUrl } = await createStripeCheckoutSession({
         eventId,
+        tierId,
       });
 
       if (sessionUrl) {
@@ -100,15 +111,52 @@ export default function PurchaseTicket({ eventId }: { eventId: Id<"events"> }) {
           </div>
         </div>
 
-        <button
-          onClick={handlePurchase}
-          disabled={isExpired || isLoading}
-          className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-white px-8 py-4 rounded-lg font-bold shadow-md hover:from-amber-600 hover:to-amber-700 transform hover:scale-[1.02] transition-all duration-200 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed disabled:hover:scale-100 text-lg"
-        >
-          {isLoading
-            ? "Redirecting to checkout..."
-            : "Purchase Your Ticket Now →"}
-        </button>
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Select Ticket Type</h3>
+
+          {ticketTiers ? (
+            ticketTiers.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  {ticketTiers.map((tier) => (
+                    <div
+                      key={tier._id}
+                      className={`border rounded-md p-4 cursor-pointer ${
+                        selectedTierId === tier._id
+                          ? "border-blue-600 bg-blue-50"
+                          : ""
+                      }`}
+                      onClick={() => setSelectedTierId(tier._id)}
+                    >
+                      <div className="flex justify-between">
+                        <h4 className="font-medium">{tier.name}</h4>
+                        <span>${tier.price.toFixed(2)}</span>
+                      </div>
+                      <p className="text-sm text-gray-600">{tier.description}</p>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <p>Standard ticket: ${event?.price?.toFixed(2) || 'Loading...'}</p>
+                </div>
+              </>
+            ) : (
+              <div>
+                <p>Standard ticket: ${event?.price?.toFixed(2) || 'Loading...'}</p>
+              </div>
+            )
+          ) : (
+            <p>Loading ticket options...</p>
+          )}
+
+          <button
+            onClick={() => handlePurchase(selectedTierId)}
+            disabled={ticketTiers && ticketTiers.length > 0 && !selectedTierId}
+            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
+          >
+            Purchase Ticket
+          </button>
+        </div>
 
         <div className="mt-4">
           <ReleaseTicket eventId={eventId} waitingListId={queuePosition._id} />

@@ -12,6 +12,7 @@ import { SignInButton, useUser } from "@clerk/nextjs";
 import { useStorageUrl } from "@/lib/utils";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import EventReviews from "@/components/EventReviews";
 
 export default function EventPage() {
   const { user } = useUser();
@@ -109,6 +110,8 @@ export default function EventPage() {
                     <li>• Age restriction: 18+</li>
                   </ul>
                 </div>
+
+                <EventReviews eventId={event._id} />
               </div>
 
               {/* Right Column - Ticket Purchase Card */}

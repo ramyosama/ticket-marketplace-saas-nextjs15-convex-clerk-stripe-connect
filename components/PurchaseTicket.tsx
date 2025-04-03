@@ -151,7 +151,7 @@ export default function PurchaseTicket({ eventId }: { eventId: Id<"events"> }) {
 
           <button
             onClick={() => handlePurchase(selectedTierId)}
-            disabled={ticketTiers && ticketTiers.length > 0 && !selectedTierId}
+            disabled={isLoading || (ticketTiers && ticketTiers.length > 0 && !selectedTierId)}
             className="w-full py-2 px-4 bg-blue-600 text-white rounded-md disabled:bg-gray-400"
           >
             Purchase Ticket

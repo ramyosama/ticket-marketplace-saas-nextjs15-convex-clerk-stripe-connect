@@ -6,7 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { createStripeConnectLoginLink } from "@/app/actions/createStripeConnectLoginLink";
 import { getStripeConnectAccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
 import type { AccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
@@ -31,11 +31,20 @@ export default function SellerDashboard() {
   const isReadyToAcceptPayments =
     accountStatus?.isActive && accountStatus?.payoutsEnabled;
 
-  useEffect(() => {
+  const fetchAccountStatus = useCallback(async () => {
     if (stripeConnectId) {
-      fetchAccountStatus();
+      try {
+        const status = await getStripeConnectAccountStatus(stripeConnectId);
+        setAccountStatus(status);
+      } catch (error) {
+        console.error("Error fetching account status:", error);
+      }
     }
   }, [stripeConnectId]);
+
+  useEffect(() => {
+    fetchAccountStatus();
+  }, [fetchAccountStatus]);
 
   if (stripeConnectId === undefined) {
     return <Spinner />;
@@ -50,17 +59,6 @@ export default function SellerDashboard() {
     } catch (error) {
       console.error("Error accessing Stripe Connect portal:", error);
       setError(true);
-    }
-  };
-
-  const fetchAccountStatus = async () => {
-    if (stripeConnectId) {
-      try {
-        const status = await getStripeConnectAccountStatus(stripeConnectId);
-        setAccountStatus(status);
-      } catch (error) {
-        console.error("Error fetching account status:", error);
-      }
     }
   };
 

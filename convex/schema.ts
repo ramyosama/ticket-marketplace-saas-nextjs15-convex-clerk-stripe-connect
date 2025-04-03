@@ -29,8 +29,7 @@ export default defineSchema({
   })
     .index("by_event", ["eventId"])
     .index("by_user", ["userId"])
-    .index("by_user_event", ["userId", "eventId"])
-    .index("by_payment_intent", ["paymentIntentId"]),
+    .index("by_user_event", ["userId", "eventId"]),
 
   waitingList: defineTable({
     eventId: v.id("events"),

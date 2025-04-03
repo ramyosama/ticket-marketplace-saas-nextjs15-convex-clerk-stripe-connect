@@ -5,7 +5,6 @@ import { api } from "@/convex/_generated/api";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
 import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -19,13 +18,13 @@ export async function createStripeCheckoutSession({
   tierId?: Id<"ticketTiers">;
 }) {
   // Get authenticated user
-  const { userId } = auth();
+  const { userId } = await auth();
   if (!userId) {
     throw new Error("You must be signed in to purchase tickets");
   }
 
   // Get event details
-  const event = await convex.query(api.events.getById, { id: eventId });
+  const event = await convex.query(api.events.getById, { eventId });
   if (!event) {
     throw new Error("Event not found");
   }
@@ -35,7 +34,8 @@ export async function createStripeCheckoutSession({
   let name = `Ticket for ${event.name}`;
   
   if (tierId) {
-    const tier = await convex.query(api.ticketTiers.getById, { id: tierId });
+    const tiers = await convex.query(api.ticketTiers.getByEventId, { eventId });
+    const tier = tiers.find(t => t._id === tierId);
     if (tier) {
       price = tier.price;
       name = `${tier.name} - ${event.name}`;
@@ -75,7 +75,8 @@ export async function createStripeCheckoutSession({
     metadata: {
       eventId,
       userId,
-      waitingListId: queueResult.waitingListId,
+      status: queueResult.status,
+      message: queueResult.message,
       tierId: tierId || "",
     },
     expires_at: Math.floor(Date.now() / 1000) + 1800, // 30 minutes (Stripe minimum)

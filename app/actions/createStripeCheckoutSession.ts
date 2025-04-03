@@ -4,7 +4,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import { ConvexHttpClient } from "convex/browser";
 import Stripe from "stripe";
-import { auth } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 // Initialize Stripe

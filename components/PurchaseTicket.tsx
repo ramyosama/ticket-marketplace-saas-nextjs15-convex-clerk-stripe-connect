@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Id } from "@/convex/_generated/dataModel";
 import { createStripeCheckoutSession } from "@/app/actions/createStripeCheckoutSession";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PurchaseTicket({ 
   eventId, 
@@ -13,8 +13,8 @@ export default function PurchaseTicket({
   eventId: Id<"events">; 
   tierId?: Id<"ticketTiers">; 
 }) {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const handlePurchase = async () => {
     setIsLoading(true);

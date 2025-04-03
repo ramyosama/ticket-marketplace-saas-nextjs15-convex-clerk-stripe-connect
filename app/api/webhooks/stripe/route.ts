@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -31,9 +32,9 @@ export async function POST(req: NextRequest) {
 
     try {
       await convex.mutation(api.events.purchaseTicket, {
-        eventId: metadata.eventId,
+        eventId: metadata.eventId as Id<"events">,
         userId: metadata.userId,
-        waitingListId: metadata.waitingListId,
+        waitingListId: metadata.waitingListId as Id<"waitingList">,
         paymentInfo: {
           paymentIntentId: session.payment_intent as string,
           amount: session.amount_total! / 100, // Convert from cents

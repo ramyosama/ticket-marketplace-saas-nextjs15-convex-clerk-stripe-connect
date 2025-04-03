@@ -9,7 +9,7 @@ import { useUser } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
 
 export default function EventReviews({ eventId }: { eventId: Id<"events"> }) {
-  const { user } = useUser();
+  const { user, isSignedIn } = useUser();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   
@@ -19,12 +19,22 @@ export default function EventReviews({ eventId }: { eventId: Id<"events"> }) {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createReview({
-      eventId,
-      rating,
-      comment,
-    });
-    setComment("");
+    if (!isSignedIn) {
+      // Show sign-in prompt
+      return;
+    }
+    
+    try {
+      await createReview({
+        eventId,
+        rating,
+        comment,
+      });
+      setComment("");
+    } catch (error) {
+      console.error("Error creating review:", error);
+      // Error handling UI
+    }
   };
   
   return (

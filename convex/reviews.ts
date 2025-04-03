@@ -86,3 +86,32 @@ export const getAverageRating = query({
     };
   },
 });
+
+export const seedReviews = mutation({
+  args: {
+    reviews: v.array(
+      v.object({
+        eventId: v.id("events"),
+        userId: v.string(),
+        rating: v.number(),
+        comment: v.string()
+      })
+    )
+  },
+  handler: async (ctx, args) => {
+    // This function doesn't check authentication since it's for seeding only
+    const now = Date.now();
+    
+    for (const review of args.reviews) {
+      await ctx.db.insert("reviews", {
+        eventId: review.eventId,
+        userId: review.userId,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: now
+      });
+    }
+    
+    return "Reviews seeded successfully";
+  }
+});
